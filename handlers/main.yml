@@ -1,0 +1,9 @@
+- name: restart elasticsearch
+  service: name=elasticsearch state=restarted
+
+- name: restart filebeat
+  service: name=filebeat state=restarted
+
+- name: reload ldconfig
+  shell: ldconfig -v > /dev/null
+  ignore_errors: yes

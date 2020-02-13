@@ -1,0 +1,142 @@
+---
+# elasticsearch
+
+- name: Set SELinux Stuff
+  seport: ports={{ es_http_port }},{{ es_publish_port }} proto=tcp setype=http_port_t state=present
+
+- name: Create ES Group (gid {{ es_user_gid }})
+  group: name=elasticsearch state=present gid={{ es_user_gid }}
+
+- name: Create ES User (uid {{ es_user_uid }})
+  user: name=elasticsearch state=present uid={{ es_user_uid }}  group=elasticsearch
+
+- name: Create ES Snapshot Repository Directory
+  file: path={{ backup_repository_path }} state=directory owner=elasticsearch group=elasticsearch
+
+- name: copy ES Yum Repo File
+  copy: src=elasticsearch.repo dest=/etc/yum.repos.d/elasticsearch.repo
+  tags: es-install
+
+- name: Install java-1.8.0-openjdk
+  yum: name=java-1.8.0-openjdk state=latest
+  notify:
+    - restart elasticsearch
+
+- name: Get Default Java Executable
+  stat: path="/bin/java"
+  register: sym
+  tags: java
+
+- name: Get JLI Lib Path for Current Java
+  find: paths={{ sym.stat.lnk_source | dirname ~ "/../../" }} patterns="libjli.so" recurse=yes
+  register: js
+  tags: java
+
+- name: Set LD Conf for jli Libs
+  lineinfile: dest=/etc/ld.so.conf.d/java_amd64_jli.conf line="{{ js.files[0].path | dirname }}" state=present create=yes
+  notify: reload ldconfig
+  tags: java
+
+- name: Install Elasticsearch
+  yum: name=elasticsearch state=latest
+  tags: es-install
+  notify:
+    - restart elasticsearch
+
+- name: ES Directory Ownership
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    owner: elasticsearch
+    group: elasticsearch
+  with_items:
+    - "/etc/elasticsearch"
+    - "/var/lib/elasticsearch"
+    - "/var/log/elasticsearch"
+
+- name: ES File Ownership
+  file:
+    path: "{{ item }}"
+    owner: elasticsearch
+    group: elasticsearch
+  with_items:
+    - "/etc/sysconfig/elasticsearch"
+
+- name: copy SSL Certificates to Config Directory
+  tags: esconfig
+  copy:
+    src: "{{ item }}"
+    remote_src: no
+    dest: /etc/elasticsearch
+    owner: elasticsearch
+    group: elasticsearch
+    mode: 0660
+  with_items:
+    - "{{ es_security_ca_file }}"
+    - "{{ es_security_crt_file }}"
+
+- name: set SSL Keystore password
+  tags: esconfig
+  shell: echo {{ es_security_crt_pwd }} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -x xpack.security.transport.ssl.keystore.secure_password -f
+
+
+- name: set SSL CA Keystore password
+  tags: esconfig
+  shell: echo {{ es_security_ca_pwd }} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -x xpack.security.transport.ssl.truststore.secure_password -f
+
+- name: Create ES Config File
+  template: src={{ item }} dest=/etc/elasticsearch/{{ item }} owner=elasticsearch group=elasticsearch mode=0640
+  tags: esconfig
+  with_items:
+    - "elasticsearch.yml"
+  notify:
+    - restart elasticsearch
+
+
+- name: Ensure ENV Path is set correct
+  tags: esconfig-env
+  lineinfile:
+    path: /etc/sysconfig/elasticsearch
+    regexp: '^ES_PATH_CONF='
+    insertafter: '^#ES_PATH_CONF='
+    line: ES_PATH_CONF=/etc/elasticsearch
+
+
+- name: Start Elasticsearch Server
+  service: name=elasticsearch state=started enabled=yes
+
+- name: Install Filebeat
+  yum: name=filebeat state=latest
+  tags: filebeat-install
+  notify:
+    - restart filebeat
+
+- name: Check if Filebeat Modules for ES is enabled
+  tags: filebeat-install
+  stat:
+    path: /etc/filebeat/modules.d/elasticsearch.yml
+  register: stat_result
+
+- name: Enable ES Module for Filebeat
+  tags: filebeat-install
+  shell: filebeat modules enable elasticsearch
+  when: stat_result.stat.exists == False
+
+- name: Create ES Filebeat Config File
+  tags: filebeat-install
+  template: src=filebeat_elasticsearch.yml dest=/etc/filebeat/modules.d/elasticsearch.yml
+  notify:
+    - restart filebeat
+
+- name: Create Filebeat Config File
+  tags: filebeat-install
+  template: src=filebeat.yml dest=/etc/filebeat/filebeat.yml
+  notify:
+    - restart filebeat
+
+
+- name: "include Curator Tasks"
+  include: curator.yml
+  when: install_curator == "yes"
+  tags: curator

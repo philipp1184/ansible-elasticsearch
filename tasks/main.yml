@@ -1,0 +1,117 @@
+---
+# elasticsearch
+
+#- name: Set SELinux Stuff (required packages)
+#  yum: name=policycoreutils-python state=installed
+
+- name: Set SELinux Stuff
+  seport: ports={{ es_http_port }},{{ es_publish_port }} proto=tcp setype=http_port_t state=present
+
+- name: Create ES Group (gid {{ es_user_gid }})
+  group: name=elasticsearch state=present gid={{ es_user_gid }} 
+  
+- name: Create ES User (uid {{ es_user_uid }})
+  user: name=elasticsearch state=present uid={{ es_user_uid }}  group=elasticsearch
+
+- name: Create ES Snapshot Repository Directory
+  file: path={{ backup_repository_path }} state=directory owner=elasticsearch group=elasticsearch
+
+#- name: copy Elasticsearch RPM
+#  copy: src={{ es_rpm }} dest=/tmp/elasticsearch.rpm
+#  tags: es-install  
+- name: copy ES Yum Repo File
+  copy: src=elasticsearch.repo dest=/etc/yum.repos.d/elasticsearch.repo
+  tags: es-install
+
+- name: Install java-1.8.0-openjdk
+  yum: name=java-1.8.0-openjdk state=latest
+  notify:
+    - restart elasticsearch  
+
+- name: Install Elasticsearch
+  yum: name=elasticsearch state=latest
+  tags: es-install
+  notify:
+    - restart elasticsearch  
+
+- name: ES Directory Ownership
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    owner: elasticsearch
+    group: elasticsearch
+  with_items:
+    - "/etc/elasticsearch"
+    - "/var/lib/elasticsearch"
+    - "/var/log/elasticsearch"
+
+- name: ES File Ownership
+  file:
+    path: "{{ item }}"
+    owner: elasticsearch
+    group: elasticsearch
+  with_items:
+    - "/etc/sysconfig/elasticsearch"
+
+
+ 
+- name: Create ES Config File
+  template: src={{ item }} dest=/etc/elasticsearch/{{ item }} owner=elasticsearch group=elasticsearch mode=0640
+  tags: esconfig
+  with_items: 
+    - "elasticsearch.yml"
+    - "logging.yml"
+  notify:
+    - restart elasticsearch
+
+  
+- name: Start Elasticsearch Server
+  service: name=elasticsearch state=started enabled=yes
+
+#~ - stat: path=/usr/share/elasticsearch/plugins/kopf
+  #~ tags: esplugins
+  #~ register: p
+
+#~ - name: Install ES Plugins
+  #~ shell: /usr/share/elasticsearch/bin/plugin -Dhttps.proxyHost={{ http_proxy | regex_replace('^http://(.*):.*$', '\1') }} -Dhttps.proxyPort={{ http_proxy | regex_replace('^http://.*:(.*)$', '\1') }} install lmenezes/elasticsearch-kopf/{{ es_kopf_version }}
+  #~ tags: esplugins
+  #~ when: p.stat.exists == False
+
+- name: Install Filebeat
+  yum: name=filebeat state=latest
+  tags: filebeat-install
+  notify:
+    - restart filebeat
+    
+- name: Check if Filebeat Modules for ES is enabled
+  tags: filebeat-install
+  stat:
+    path: /etc/filebeat/modules.d/elasticsearch.yml
+  register: stat_result  
+  
+- name: Enable ES Module for Filebeat
+  tags: filebeat-install
+  shell: filebeat modules enable elasticsearch
+  when: stat_result.stat.exists == False
+
+- name: Create ES Config File
+  tags: filebeat-install
+  template: src=filebeat_elasticsearch.yml dest=/etc/filebeat/modules.d/elasticsearch.yml
+  notify:
+    - restart filebeat
+  
+- name: Create Filebeat Config File
+  tags: filebeat-install
+  template: src=filebeat.yml dest=/etc/filebeat/filebeat.yml
+  notify:
+    - restart filebeat
+  
+    
+  
+
+- name: "include Curator Tasks"
+  include: curator.yml
+  when: install_curator == "yes"
+  tags: curator
+

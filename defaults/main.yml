@@ -1,0 +1,24 @@
+es_master: "true"
+es_data: "true"
+es_http_port: 9200
+es_publish_port: 9300
+
+# ES RPM File
+es_rpm: "elasticsearch-2.3.3.rpm"
+
+# ES Kopf Plugin
+es_kopf_version: "v2.1.1"
+
+# install Curator
+install_curator: no
+
+
+# Elasticsearch User Group
+es_user_uid: 1001
+es_user_gid: 1001
+
+# 
+es_listen_if: false
+
+backup_repository_path: "/mnt/es_snapshots"
+loghost: "loghost"

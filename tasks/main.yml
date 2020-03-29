@@ -134,9 +134,3 @@
   template: src=filebeat.yml dest=/etc/filebeat/filebeat.yml
   notify:
     - restart filebeat
-
-
-- name: "include Curator Tasks"
-  include: curator.yml
-  when: install_curator == "yes"
-  tags: curator

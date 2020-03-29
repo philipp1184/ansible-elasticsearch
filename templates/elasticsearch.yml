@@ -155,7 +155,7 @@ indices.memory.min_index_buffer_size: 96mb
 #indices.cache.filter.expire: 6h
 
 #
-
+#
 xpack.security.enabled: {{ es_security_enabled }}
 
 xpack.security.transport.ssl.enabled: {{ es_security_enabled }}

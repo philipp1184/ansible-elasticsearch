@@ -7,10 +7,12 @@ es_security_enabled: "true"
 es_monitoring_enabled: "true"
 
 
-
-es_security_ca_file: "elastic-stack-ca.p12"
+## P12 Keystores for Elastic. Path are local paths on Node
+#es_security_ca_file: "elastic-stack-ca.p12"
+es_security_ca_file: "/etc/pki/ca-trust/source/anchors/default-ca.p12"
 es_security_ca_pwd: "secret"
-es_security_crt_file: "elastic-certificates.p12"
+#es_security_crt_file: "elastic-certificates.p12"
+es_security_crt_file: "/etc/ssl/certs/{{ ansible_hostname }}.p12"
 es_security_crt_pwd: "secret"
 
 

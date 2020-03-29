@@ -67,7 +67,7 @@
   tags: esconfig
   copy:
     src: "{{ item }}"
-    remote_src: no
+    remote_src: yes
     dest: /etc/elasticsearch
     owner: elasticsearch
     group: elasticsearch

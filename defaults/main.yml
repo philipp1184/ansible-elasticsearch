@@ -6,6 +6,17 @@ es_publish_port: 9300
 es_security_enabled: "true"
 es_monitoring_enabled: "true"
 
+es_node_roles:
+  - master
+  - data
+  - data_content
+  - data_hot
+  - data_warm
+  - data_cold
+  - ingest
+  - ml
+  - remote_cluster_client
+  - transform
 
 
 es_security_ca_file: "elastic-stack-ca.p12"

@@ -80,7 +80,6 @@
   tags: esconfig
   shell: echo {{ es_security_crt_pwd }} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -x xpack.security.transport.ssl.keystore.secure_password -f
 
-
 - name: set SSL CA Keystore password
   tags: esconfig
   shell: echo {{ es_security_ca_pwd }} | /usr/share/elasticsearch/bin/elasticsearch-keystore add -x xpack.security.transport.ssl.truststore.secure_password -f
@@ -111,6 +110,16 @@
   tags: filebeat-install
   notify:
     - restart filebeat
+
+- name: firewalld configuration
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+  loop:
+    - "9200/tcp"
+    - "9300/tcp"
+  notify: reload firewalld
 
 - name: Check if Filebeat Modules for ES is enabled
   tags: filebeat-install

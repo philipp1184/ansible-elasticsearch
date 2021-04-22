@@ -7,3 +7,6 @@
 - name: reload ldconfig
   shell: ldconfig -v > /dev/null
   ignore_errors: yes
+
+- name: reload firewalld
+  systemd: name=firewalld state=reloaded

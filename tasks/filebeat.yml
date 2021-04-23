@@ -1,0 +1,15 @@
+- name: Check if Filebeat ES Module is enabled
+  stat:
+    path: /etc/filebeat/modules.d/elasticsearch.yml
+  register: stat_result
+
+- name: Enable ES Module for Filebeat
+  tags: filebeat-install
+  shell: filebeat modules enable logstash
+  when: stat_result.stat.exists == False
+
+- name: Create ES Filebeat Config File
+  tags: filebeat-install
+  template: src=filebeat_elasticsearch.yml dest=/etc/filebeat/modules.d/elasticsearch.yml
+  notify:
+    - restart filebeat

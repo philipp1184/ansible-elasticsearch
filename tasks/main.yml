@@ -1,5 +1,9 @@
 ---
 # elasticsearch
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
 
 - name: Set SELinux Stuff
   seport: ports={{ es_http_port }},{{ es_publish_port }} proto=tcp setype=http_port_t state=present
@@ -105,12 +109,6 @@
 - name: Start Elasticsearch Server
   service: name=elasticsearch state=started enabled=yes
 
-- name: Install Filebeat
-  yum: name=filebeat state=latest
-  tags: filebeat-install
-  notify:
-    - restart filebeat
-
 - name: firewalld configuration
   firewalld:
     port: "{{ item }}"
@@ -121,25 +119,6 @@
     - "9300/tcp"
   notify: reload firewalld
 
-- name: Check if Filebeat Modules for ES is enabled
-  tags: filebeat-install
-  stat:
-    path: /etc/filebeat/modules.d/elasticsearch.yml
-  register: stat_result
 
-- name: Enable ES Module for Filebeat
-  tags: filebeat-install
-  shell: filebeat modules enable elasticsearch
-  when: stat_result.stat.exists == False
-
-- name: Create ES Filebeat Config File
-  tags: filebeat-install
-  template: src=filebeat_elasticsearch.yml dest=/etc/filebeat/modules.d/elasticsearch.yml
-  notify:
-    - restart filebeat
-
-- name: Create Filebeat Config File
-  tags: filebeat-install
-  template: src=filebeat.yml dest=/etc/filebeat/filebeat.yml
-  notify:
-    - restart filebeat
+- include: filebeat.yml
+  when: "'filebeat' in ansible_facts.packages"

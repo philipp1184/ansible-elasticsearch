@@ -1,2 +1,2 @@
 # ansible-elasticsearch
-Ansible Role for Elasticsearch on CentOS
+Ansible Role for Elasticsearch on CentOS 7
